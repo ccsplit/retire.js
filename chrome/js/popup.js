@@ -59,12 +59,14 @@ function copyUrls() {
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
     chrome.tabs.sendMessage(tabs[0].id, {getDetected: 1}, function(response){
       components = new Set()
+      comp_names = new Set()
       urls = new Set()
       response.forEach(function(vuln){
         if (vuln.vulnerable) {
           components.add(vuln.url);
           vuln.results.forEach(function(res) {
             if (res.vulnerabilities.length > 0) {
+              comp_names.add(res.component)
               res.vulnerabilities.forEach(function(res_vuln){
                 res_vuln.info.forEach(function(i){
                   urls.add(i);
@@ -74,7 +76,7 @@ function copyUrls() {
           });
         }
       })
-      copyToClipboard(`Vulnerability URLs:\n${Array.from(urls).sort().join('\n')}\n\nComponents:\n${Array.from(components).sort().join("\n")}`)
+      copyToClipboard(`Vulnerability URLs:\n${Array.from(urls).sort().join('\n')}\n\nVulnerable Components: (${Array.from(comp_names).sort().join(", ")})\n${Array.from(components).sort().join("\n")}`)
       alert("Successfully copied.")
     })
   })
