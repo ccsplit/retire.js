@@ -1,29 +1,42 @@
 /* global require, exports */
 var utils   = require('./utils'),
-    fs    = require('fs'),
-    req   = require('request'),
-    path  = require('path'),
-    forward   = require('../lib/utils').forwardEvent,
-    retire  = require('./retire');
+    fs      = require('fs'),
+    path    = require('path'),
+    forward = require('../lib/utils').forwardEvent,
+    http    = require('http'),
+    https   = require('https'),
+    retire  = require('./retire'),
+    URL     = require('url'),
+    HttpsProxyAgent = require('https-proxy-agent');
+
 var emitter = require('events').EventEmitter;
 
 
 function loadJson(url, options) {
   var events = new emitter();
-  var request = req;
   options.log.info('Downloading ' + url + ' ...');
+  var reqOptions = Object.assign({}, URL.parse(url), { method: 'GET' });
   if (options.proxy) {
-    request = request.defaults({'proxy' : options.proxy});
+    reqOptions.agent = new HttpsProxyAgent(options.proxy);
   }
-  request.get(url, function (error, r, data) {
-    if (error) {
-      events.emit('stop', 'Error downloading: ' + url, error);
-    } else {
-      data = options.process ? options.process(data) : data;
-      var obj = JSON.parse(data);
-      events.emit('done', obj);
-    }
+  if (options.insecure) {
+    reqOptions.rejectUnauthorized = false;
+  }
+  if (options.cacertbuf) {
+    reqOptions.ca = [ options.cacertbuf ];
+  }
+  var req = (url.startsWith("http:") ? http : https).request(reqOptions, function (res) {
+    if (res.statusCode != 200) return events.emit('stop', 'Error downloading: ' + url + ": HTTP " + res.statusCode + " " + res.statusText);
+    var data = [];
+    res.on('data', c => data.push(c));
+    res.on('end', () => {
+        var d = Buffer.concat(data).toString();
+        d = options.process ? options.process(d) : d;
+        events.emit('done', JSON.parse(d));
+    });
   });
+  req.on('error', e => events.emit('stop', 'Error downloading: ' + url + ": " + e.toString()));
+  req.end();
   return events;
 }
 
