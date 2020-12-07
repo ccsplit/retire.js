@@ -110,7 +110,7 @@ window.addEventListener("message", function(evt) {
 });
 
 function stringifyResults(results) {
-	return results.map(x => "\n" + x.component + ":" + x.version).reduce((a,b) => a + b);
+	return results.map(x => "\n" + x.component + ":" + x.version).reduce((a,b) => a + b, "");
 }
 
 events.on('result-ready', function(details, results) {
@@ -128,7 +128,9 @@ events.on('result-ready', function(details, results) {
 		chrome.tabs.sendMessage(details.tabId, {
 			message : JSON.stringify(result)
 		}, function(response) {
-			chrome.browserAction.setBadgeText({text : "" + response.count, tabId : details.tabId });
+      if (response !== undefined){
+        chrome.browserAction.setBadgeText({text : "" + response.count, tabId : details.tabId });
+      }
 		});
 	}, 3000);
 });
